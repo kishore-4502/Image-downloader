@@ -5,30 +5,26 @@ import android.app.NotificationManager
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
-import android.net.Uri
+import android.graphics.BitmapFactory
+import android.media.MediaScannerConnection
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.image.R
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.io.OutputStream
-import java.net.HttpURLConnection
+import kotlinx.coroutines.*
+import java.io.*
 import java.net.MalformedURLException
 import java.net.URL
+import java.text.SimpleDateFormat
 import java.util.*
+
+
 
 // Name of Notification Channel for verbose notifications of background work
 @JvmField val VERBOSE_NOTIFICATION_CHANNEL_NAME: CharSequence =
@@ -40,22 +36,20 @@ const val CHANNEL_ID = "ID_NOTIFICATION"
 const val NOTIFICATION_ID = 1
 
 class ImageViewModel:ViewModel() {
-    private var _imageUrl= MutableLiveData<String>("")
-    val imageUrl:LiveData<String> = _imageUrl
 
-
+    private var _imageUrl:String = ""
 
     //Setter
     fun setImageUrl(url:String){
-        _imageUrl.value = url
+        _imageUrl = url
     }
 
     //Getter
     fun getImageUrl():String{
-        return _imageUrl.value!!
+        return _imageUrl
     }
 
-    fun makeStatusNotification(message: String, context: Context) {
+    private fun makeStatusNotification(message: String, context: Context) {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = VERBOSE_NOTIFICATION_CHANNEL_NAME
@@ -84,30 +78,69 @@ class ImageViewModel:ViewModel() {
     }
 
 
-    suspend fun downloadImage(context: Context, url: String, fileName: String) {
-        try {
-            val url = URL(url)
-            val inputStream = url.openStream()
-            val contentValues = ContentValues().apply {
-                put(MediaStore.Images.Media.DISPLAY_NAME, fileName)
-                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-                put(MediaStore.Images.Media.DATE_ADDED, System.currentTimeMillis() / 1000)
-                put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis())
+    suspend fun downloadImage1(context: Context, url: String, fileName: String) {
+            try {
+                val url = URL(url)
+                val inputStream = url.openStream()
+                val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
+                val newFileName = "$fileName-$timeStamp.jpg"
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.Images.Media.DISPLAY_NAME, newFileName)
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                }
+                val uri = withContext(Dispatchers.IO) {
+                    context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                }
+                val outputStream = context.contentResolver.openOutputStream(uri!!)
+                inputStream.use { it.copyTo(outputStream!!) }
+                outputStream?.close()
+                makeStatusNotification("Download completed",context)
+            } catch (e: MalformedURLException) {
+                makeStatusNotification("Invalid Url",context)
+            } catch (e: Exception) {
+                makeStatusNotification("Couldn't download",context)
             }
+    }
 
-            val uri = withContext(Dispatchers.IO) {
-                context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+    suspend fun downloadImage2(context: Context,imageUrl: String, fileName: String) {
+        return withContext(Dispatchers.IO) {
+            try {
+                val url = URL(imageUrl)
+                val inputStream = url.openStream()
+                val bitmap = BitmapFactory.decodeStream(inputStream)
+                inputStream.close()
+
+                val timeStamp: String = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
+                val newFileName = "$fileName-$timeStamp.jpg"
+                val storageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+                val file = File(storageDir, newFileName)
+                val outputStream = FileOutputStream(file)
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+                outputStream.close()
+                MediaScannerConnection.scanFile(context, arrayOf(file.toString()), null) { path, uri ->
+                    Log.i("ExternalStorage", "Scanned $path:")
+                    Log.i("ExternalStorage", "-> uri=$uri")
+                }
+                makeStatusNotification("Download completed",context)
+
+            } catch (e: MalformedURLException) {
+                makeStatusNotification("Invalid Url",context)
+            } catch (e: Exception) {
+                makeStatusNotification("Couldn't download",context)
             }
-
-            val outputStream = context.contentResolver.openOutputStream(uri!!)
-            inputStream.use { it.copyTo(outputStream!!) }
-            outputStream?.close()
-            makeStatusNotification("Download completed",context)
-        } catch (e: MalformedURLException) {
-            makeStatusNotification("Invalid Url",context)
-        } catch (e: Exception) {
-            makeStatusNotification("Couldn't download",context)
         }
     }
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
