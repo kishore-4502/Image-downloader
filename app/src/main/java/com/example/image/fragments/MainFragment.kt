@@ -32,6 +32,12 @@ class MainFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View? {
         binding =  FragmentMainBinding.inflate(inflater,container, false)
+        val savedUrl = viewModel.getImageUrl()
+        if(savedUrl!="")
+        {
+            loadImage()
+        }
+
         return binding.root
     }
 
@@ -41,13 +47,7 @@ class MainFragment : Fragment() {
             var url =  binding.textInput.text.toString()
             if(url!=""){
                 viewModel.setImageUrl(url)
-                binding.image.visibility = View.VISIBLE
-                binding.downloadButton.visibility = View.VISIBLE
-                var result=binding.image.load(viewModel.getImageUrl()){
-                    placeholder(R.drawable.loading_img)
-                    error(R.drawable.ic_connection_error)
-                }
-
+                loadImage()
             }
         }
 
@@ -58,4 +58,13 @@ class MainFragment : Fragment() {
         }
 
     }
+    fun loadImage(){
+        binding.image.visibility = View.VISIBLE
+        binding.downloadButton.visibility = View.VISIBLE
+        binding.image.load(viewModel.getImageUrl()){
+            placeholder(R.drawable.loading_img)
+            error(R.drawable.ic_connection_error)
+        }
+    }
+
 }
