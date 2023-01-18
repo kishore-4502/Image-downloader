@@ -83,35 +83,6 @@ class ImageViewModel:ViewModel() {
         NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, builder.build())
     }
 
-    suspend fun downloadImageFromURL(context: Context, imageURL: String): Uri? {
-        return withContext(Dispatchers.IO) {
-            val url = URL(imageURL)
-            val inputStream = url.openStream()
-            val values = ContentValues().apply {
-                put(MediaStore.Images.Media.DATE_TAKEN, System.currentTimeMillis())
-                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-            }
-            val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-            if (uri != null) {
-                try {
-                    val outputStream = context.contentResolver.openOutputStream(uri)
-                    if (outputStream != null) {
-                        inputStream.use { input ->
-                            outputStream.use { output ->
-                                input.copyTo(output)
-                            }
-                        }
-                    }
-                } catch (e: IOException) {
-                    context.contentResolver.delete(uri, null, null)
-                    e.printStackTrace()
-                }
-            }
-            uri
-        }
-
-    }
-
 
     suspend fun downloadImage(context: Context, url: String, fileName: String) {
         try {
