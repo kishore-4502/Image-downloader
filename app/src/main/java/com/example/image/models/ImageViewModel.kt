@@ -119,7 +119,7 @@ class ImageViewModel:ViewModel() {
                 outputStream.close()
                 MediaScannerConnection.scanFile(context, arrayOf(file.toString()), null) { path, uri ->
                     Log.i("ExternalStorage", "Scanned $path:")
-                    Log.i("ExternalStorage", "-> uri=$uri")
+                    Log.i("ExternalStorage", "uri=$uri")
                 }
                 makeStatusNotification("Download completed",context)
 
